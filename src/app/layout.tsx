@@ -1,29 +1,34 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import Navbar from "@/components/Navbar"; // Import the Navbar
+import "./globals.css"; // Make sure this path correctly points to your globals.css
+import Navbar from "@/components/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-inter", // This defines the CSS variable name for Inter font
+    display: "swap"
+});
 
 export const metadata: Metadata = {
     title: "Moroccan Economy Dashboard",
-    description: "Multidimensional analysis of the Moroccan Economy using a Data Warehouse.",
+    description:
+        "Multidimensional analysis of the Moroccan economy using a data warehouse.",
 };
 
-export default function RootLayout({
-                                       children,
-                                   }: Readonly<{
-    children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
-        <body className={`${inter.className} bg-gray-900 text-white`}>
-        <Navbar /> {/* Add Navbar here */}
-        <main className="container mx-auto p-4 md:p-8"> {/* Add some padding to main content */}
+        <html lang="en" className={`${inter.variable} h-full antialiased`}>
+        <body className="flex flex-col min-h-screen"> {/* Default theme from globals.css */}
+        <Navbar />
+        <main className="flex-grow"> {/* Removed container and padding constraints */}
             {children}
         </main>
-        {/* You can add a Footer component here as well */}
+        {/* Optional Footer
+            <footer className="py-6 text-center text-xs text-[rgb(var(--foreground-rgb))] opacity-60 border-t border-[rgba(var(--foreground-rgb),0.1)]">
+                © {new Date().getFullYear()} Moroccan Economy Data Platform
+            </footer>
+            */}
         </body>
         </html>
     );

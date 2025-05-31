@@ -2,17 +2,18 @@
 import { queryDatabase } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export async function GET() { // Ensure this is exported correctly
+export async function GET() {
     try {
         const sql = `
-            SELECT 
-                IndicatorKey, 
-                StandardizedIndicatorName, 
-                IndicatorCategory, 
-                IndicatorSubCategory, 
-                StandardUnit 
+            SELECT
+                IndicatorKey,
+                StandardizedIndicatorName,
+                DisplayName, -- << ADDED
+                IndicatorCategory,
+                IndicatorSubCategory,
+                StandardUnit
             FROM DimIndicator
-            ORDER BY IndicatorCategory, StandardizedIndicatorName;
+            ORDER BY IndicatorCategory, DisplayName; -- Optionally order by DisplayName
         `;
         const indicators = await queryDatabase(sql);
 
@@ -20,7 +21,6 @@ export async function GET() { // Ensure this is exported correctly
 
     } catch (error) {
         console.error("API Error fetching indicators:", error);
-        // Make sure to cast error to Error type to access message property
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
         return NextResponse.json({ message: "Failed to fetch indicators", error: errorMessage }, { status: 500 });
     }
