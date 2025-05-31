@@ -34,6 +34,13 @@ export default function DashboardPage() {
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
 
+    // -------- START: New state for Gemini Test --------
+    const [geminiTestResponse, setGeminiTestResponse] = useState<string | null>(null);
+    const [isLoadingGeminiTest, setIsLoadingGeminiTest] = useState<boolean>(false);
+    const [errorGeminiTest, setErrorGeminiTest] = useState<string | null>(null);
+    // -------- END: New state for Gemini Test --------
+
+
     useEffect(() => {
         setIsMounted(true); // Component has mounted on the client
 
@@ -53,13 +60,9 @@ export default function DashboardPage() {
                 }
                 const data = await response.json();
                 setIndicators(data);
-                // Optionally pre-select if needed after mount and data load
-                // if (data.length > 0 && !selectedIndicatorKey) {
-                //     setSelectedIndicatorKey(data[0].IndicatorKey.toString());
-                // }
             } catch (err) {
                 setErrorIndicators((err as Error).message);
-                console.error(err);
+                console.error("Fetch Indicators Error:", err);
             } finally {
                 setIsLoadingIndicators(false);
             }
@@ -69,12 +72,13 @@ export default function DashboardPage() {
 
     const handleIndicatorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedIndicatorKey(event.target.value);
-        setChartData([]);
-        setCurrentChartIndicator(null);
+        setChartData([]); // Clear previous chart data
+        setCurrentChartIndicator(null); // Clear current indicator details
+        setGeminiTestResponse(null); // Clear AI response if indicator changes
+        setErrorGeminiTest(null); // Clear AI error if indicator changes
     };
 
     const handleFetchChartData = async () => {
-        // ... (validation logic remains the same) ...
         if (!selectedIndicatorKey) {
             alert("Please select an indicator.");
             return;
@@ -90,6 +94,7 @@ export default function DashboardPage() {
 
         setIsLoadingChartData(true);
         setErrorChartData(null);
+        setChartData([]); // Clear previous chart data before fetching new
         const selectedInd = indicators.find(ind => ind.IndicatorKey.toString() === selectedIndicatorKey);
         setCurrentChartIndicator(selectedInd || null);
 
@@ -108,16 +113,40 @@ export default function DashboardPage() {
             const data: ChartDataPoint[] = await response.json();
             const formattedData = data.map(point => ({
                 ...point,
-                value: Number(point.value)
+                value: Number(point.value) // Ensure value is a number
             }));
             setChartData(formattedData);
         } catch (err) {
             setErrorChartData((err as Error).message);
-            console.error(err);
+            console.error("Fetch Chart Data Error:", err);
         } finally {
             setIsLoadingChartData(false);
         }
     };
+
+    // -------- START: New function for Gemini Test --------
+    const handleTestGeminiApi = async () => {
+        setIsLoadingGeminiTest(true);
+        setErrorGeminiTest(null);
+        setGeminiTestResponse(null);
+        try {
+            const response = await fetch('/api/test-gemini'); // Calls your test API route
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Try to get the error message from the JSON response, or use a default
+                throw new Error(data.error || `Gemini API Test Failed: ${response.statusText} (Status: ${response.status})`);
+            }
+            setGeminiTestResponse(data.message);
+        } catch (err) {
+            setErrorGeminiTest((err as Error).message);
+            console.error("Gemini Test API Call Error:", err);
+        } finally {
+            setIsLoadingGeminiTest(false);
+        }
+    };
+    // -------- END: New function for Gemini Test --------
+
 
     if (!isMounted) {
         // Return null or a basic loading skeleton that is guaranteed to be the same on server and client
@@ -125,7 +154,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 p-4 md:p-8"> {/* Added some padding for better layout */}
             <section className="bg-gray-800 p-6 rounded-lg shadow-xl">
                 <h2 className="text-2xl font-semibold mb-6 text-gray-300">Indicator Selection</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
@@ -151,7 +180,7 @@ export default function DashboardPage() {
                             </select>
                         )}
                         {!isLoadingIndicators && !errorIndicators && indicators.length === 0 && (
-                            <p>No indicators available.</p>
+                            <p className="text-gray-400">No indicators available.</p>
                         )}
                     </div>
 
@@ -198,8 +227,8 @@ export default function DashboardPage() {
                     {currentChartIndicator ? `Visualization: ${currentChartIndicator.StandardizedIndicatorName}` : "Visualization"}
                 </h2>
                 <div id="chart-area" className="h-[350px] bg-gray-700 p-4 rounded">
-                    {isLoadingChartData && <p className="text-center text-gray-400">Loading chart data...</p>}
-                    {errorChartData && <p className="text-red-500 text-center">Error loading chart data: {errorChartData}</p>}
+                    {isLoadingChartData && <p className="text-center text-gray-400 pt-4">Loading chart data...</p>}
+                    {errorChartData && <p className="text-red-500 text-center pt-4">Error loading chart data: {errorChartData}</p>}
                     {!isLoadingChartData && !errorChartData && chartData.length > 0 && currentChartIndicator && (
                         <EconomicChart
                             chartData={chartData}
@@ -207,14 +236,41 @@ export default function DashboardPage() {
                             unit={currentChartIndicator.StandardUnit}
                         />
                     )}
-                    {!isLoadingChartData && !errorChartData && chartData.length === 0 && !currentChartIndicator && (
-                        <p className="text-center text-gray-500">Select an indicator and date range, then click "Display Chart".</p>
+                    {!isLoadingChartData && !errorChartData && chartData.length === 0 && !currentChartIndicator && !isLoadingChartData && (
+                        <p className="text-center text-gray-500 pt-4">Select an indicator and date range, then click "Display Chart".</p>
                     )}
+                    {/* Condition when an indicator IS selected but no data is returned */}
                     {!isLoadingChartData && !errorChartData && chartData.length === 0 && currentChartIndicator && (
-                        <p className="text-center text-gray-400">No data available for the selected indicator and criteria.</p>
+                        <p className="text-center text-gray-400 pt-4">No data available for the selected indicator and criteria.</p>
                     )}
                 </div>
             </section>
+
+            {/* -------- START: New section for Gemini Test -------- */}
+            <section className="bg-gray-800 p-6 rounded-lg shadow-xl">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-300">Test Gemini API Integration</h2>
+                <button
+                    onClick={handleTestGeminiApi}
+                    disabled={isLoadingGeminiTest}
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isLoadingGeminiTest ? "Testing API..." : "Test Gemini Connection"}
+                </button>
+                {isLoadingGeminiTest && <p className="mt-4 text-gray-400">Contacting Gemini, please wait...</p>}
+                {errorGeminiTest && (
+                    <div className="mt-4 p-3 bg-red-900/50 border border-red-700 rounded">
+                        <p className="font-semibold text-red-300">Error testing Gemini:</p>
+                        <p className="text-red-400 whitespace-pre-wrap break-words">{errorGeminiTest}</p>
+                    </div>
+                )}
+                {geminiTestResponse && (
+                    <div className="mt-4 p-3 bg-gray-700 border border-gray-600 rounded">
+                        <h3 className="font-semibold text-gray-300">Gemini Said:</h3>
+                        <p className="text-gray-400 whitespace-pre-wrap">{geminiTestResponse}</p>
+                    </div>
+                )}
+            </section>
+            {/* -------- END: New section for Gemini Test -------- */}
         </div>
     );
 }
