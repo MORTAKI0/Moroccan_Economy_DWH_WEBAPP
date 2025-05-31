@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,25 +18,20 @@ interface ChartDataPoint {
 }
 
 export default function DashboardPage() {
-    const [isMounted, setIsMounted] = useState(false); // For hydration
+    const [isMounted, setIsMounted] = useState(false);
     const [indicators, setIndicators] = useState<Indicator[]>([]);
     const [selectedIndicatorKey, setSelectedIndicatorKey] = useState<string>('');
-    const [isLoadingIndicators, setIsLoadingIndicators] = useState<boolean>(true); // Start true
+    const [isLoadingIndicators, setIsLoadingIndicators] = useState<boolean>(true);
     const [errorIndicators, setErrorIndicators] = useState<string | null>(null);
-
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isLoadingChartData, setIsLoadingChartData] = useState<boolean>(false);
     const [errorChartData, setErrorChartData] = useState<string | null>(null);
     const [currentChartIndicator, setCurrentChartIndicator] = useState<Indicator | null>(null);
-
-    // State for date range - initialize client-side
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
 
     useEffect(() => {
-        setIsMounted(true); // Component has mounted on the client
-
-        // Initialize dates on client to avoid server/client mismatch for default values
+        setIsMounted(true);
         const today = new Date();
         const oneYearAgo = new Date(new Date().setFullYear(today.getFullYear() - 1));
         setStartDate(format(oneYearAgo, 'yyyy-MM-dd'));
@@ -48,15 +42,9 @@ export default function DashboardPage() {
             setErrorIndicators(null);
             try {
                 const response = await fetch('/api/indicators');
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch indicators: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Failed to fetch indicators: ${response.statusText}`);
                 const data = await response.json();
                 setIndicators(data);
-                // Optionally pre-select if needed after mount and data load
-                // if (data.length > 0 && !selectedIndicatorKey) {
-                //     setSelectedIndicatorKey(data[0].IndicatorKey.toString());
-                // }
             } catch (err) {
                 setErrorIndicators((err as Error).message);
                 console.error(err);
@@ -65,7 +53,7 @@ export default function DashboardPage() {
             }
         };
         fetchIndicators();
-    }, []); // Empty dependency array means this runs once on mount
+    }, []);
 
     const handleIndicatorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedIndicatorKey(event.target.value);
@@ -74,7 +62,6 @@ export default function DashboardPage() {
     };
 
     const handleFetchChartData = async () => {
-        // ... (validation logic remains the same) ...
         if (!selectedIndicatorKey) {
             alert("Please select an indicator.");
             return;
@@ -100,17 +87,15 @@ export default function DashboardPage() {
                 endDate: endDate,
             });
             const response = await fetch(`/api/indicator-data?${params.toString()}`);
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Failed to fetch chart data: ${response.statusText}`);
             }
             const data: ChartDataPoint[] = await response.json();
-            const formattedData = data.map(point => ({
+            setChartData(data.map(point => ({
                 ...point,
                 value: Number(point.value)
-            }));
-            setChartData(formattedData);
+            })));
         } catch (err) {
             setErrorChartData((err as Error).message);
             console.error(err);
@@ -119,28 +104,27 @@ export default function DashboardPage() {
         }
     };
 
-    if (!isMounted) {
-        // Return null or a basic loading skeleton that is guaranteed to be the same on server and client
-        return null;
-    }
+    if (!isMounted) return null;
 
     return (
-        <div className="space-y-8">
-            <section className="bg-gray-800 p-6 rounded-lg shadow-xl">
-                <h2 className="text-2xl font-semibold mb-6 text-gray-300">Indicator Selection</h2>
+        <div className="space-y-6">
+            <section className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl shadow-xl border border-slate-700 p-6">
+                <h2 className="text-2xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
+                    Indicator Selection
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                     <div className="md:col-span-2">
-                        <label htmlFor="indicator-select" className="block text-sm font-medium text-gray-400 mb-1">
+                        <label htmlFor="indicator-select" className="block text-sm font-medium text-slate-300 mb-2">
                             Select Indicator:
                         </label>
-                        {isLoadingIndicators && <p className="text-gray-400">Loading indicators...</p>}
-                        {errorIndicators && <p className="text-red-500">Error: {errorIndicators}</p>}
+                        {isLoadingIndicators && <p className="text-slate-400">Loading indicators...</p>}
+                        {errorIndicators && <p className="text-red-400">Error: {errorIndicators}</p>}
                         {!isLoadingIndicators && !errorIndicators && indicators.length > 0 && (
                             <select
                                 id="indicator-select"
                                 value={selectedIndicatorKey}
                                 onChange={handleIndicatorChange}
-                                className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 text-white"
+                                className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white transition-all"
                             >
                                 <option value="" disabled>-- Select an Indicator --</option>
                                 {indicators.map((indicator) => (
@@ -151,12 +135,12 @@ export default function DashboardPage() {
                             </select>
                         )}
                         {!isLoadingIndicators && !errorIndicators && indicators.length === 0 && (
-                            <p>No indicators available.</p>
+                            <p className="text-slate-400">No indicators available.</p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="start-date" className="block text-sm font-medium text-gray-400 mb-1">
+                        <label htmlFor="start-date" className="block text-sm font-medium text-slate-300 mb-2">
                             Start Date:
                         </label>
                         <input
@@ -164,12 +148,12 @@ export default function DashboardPage() {
                             id="start-date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 text-white"
+                            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white transition-all"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="end-date" className="block text-sm font-medium text-gray-400 mb-1">
+                        <label htmlFor="end-date" className="block text-sm font-medium text-slate-300 mb-2">
                             End Date:
                         </label>
                         <input
@@ -177,7 +161,7 @@ export default function DashboardPage() {
                             id="end-date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 text-white"
+                            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white transition-all"
                         />
                     </div>
 
@@ -185,7 +169,7 @@ export default function DashboardPage() {
                         <button
                             onClick={handleFetchChartData}
                             disabled={!selectedIndicatorKey || isLoadingChartData}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 disabled:hover:scale-100 shadow-lg hover:shadow-blue-500/25 disabled:shadow-none"
                         >
                             {isLoadingChartData ? "Loading..." : "Display Chart"}
                         </button>
@@ -193,13 +177,21 @@ export default function DashboardPage() {
                 </div>
             </section>
 
-            <section className="bg-gray-800 p-6 rounded-lg shadow-xl min-h-[450px]">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-300">
+            <section className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl shadow-xl border border-slate-700 p-6 min-h-[450px]">
+                <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
                     {currentChartIndicator ? `Visualization: ${currentChartIndicator.StandardizedIndicatorName}` : "Visualization"}
                 </h2>
-                <div id="chart-area" className="h-[350px] bg-gray-700 p-4 rounded">
-                    {isLoadingChartData && <p className="text-center text-gray-400">Loading chart data...</p>}
-                    {errorChartData && <p className="text-red-500 text-center">Error loading chart data: {errorChartData}</p>}
+                <div className="h-[350px] bg-slate-700/50 backdrop-blur p-4 rounded-xl border border-slate-600">
+                    {isLoadingChartData && (
+                        <div className="h-full flex items-center justify-center">
+                            <p className="text-slate-300">Loading chart data...</p>
+                        </div>
+                    )}
+                    {errorChartData && (
+                        <div className="h-full flex items-center justify-center">
+                            <p className="text-red-400">Error loading chart data: {errorChartData}</p>
+                        </div>
+                    )}
                     {!isLoadingChartData && !errorChartData && chartData.length > 0 && currentChartIndicator && (
                         <EconomicChart
                             chartData={chartData}
@@ -208,10 +200,14 @@ export default function DashboardPage() {
                         />
                     )}
                     {!isLoadingChartData && !errorChartData && chartData.length === 0 && !currentChartIndicator && (
-                        <p className="text-center text-gray-500">Select an indicator and date range, then click "Display Chart".</p>
+                        <div className="h-full flex items-center justify-center">
+                            <p className="text-slate-400">Select an indicator and date range, then click "Display Chart".</p>
+                        </div>
                     )}
                     {!isLoadingChartData && !errorChartData && chartData.length === 0 && currentChartIndicator && (
-                        <p className="text-center text-gray-400">No data available for the selected indicator and criteria.</p>
+                        <div className="h-full flex items-center justify-center">
+                            <p className="text-slate-400">No data available for the selected indicator and criteria.</p>
+                        </div>
                     )}
                 </div>
             </section>
