@@ -5,7 +5,13 @@ import { useState, useEffect } from 'react';
 import EconomicChart from '@/components/EconomicChart'; // Ensure this path is correct
 import { format } from 'date-fns';
 
-// Simple SVG Icon Components (e.g., from Heroicons)
+// Simple SVG Icons - You can replace these with a proper icon library or more refined SVGs
+const FilterIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+        <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.032c0 .114-.024.224-.07.324a.75.75 0 01-1.32-.324V12.5c0-.584-.237-1.135-.659-1.59L4.682 6.22A2.25 2.25 0 014 4.632V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+    </svg>
+);
+
 const ChartBarIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
         <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 10h2v7H7v-7zm4 0h2v7h-2v-7zm4-3h2v10h-2V7z" />
@@ -18,9 +24,10 @@ const LightBulbIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-        <path d="M11.4 चमकता है1.74a.75.75 0 011.06.04l.05.06 1.72 1.72a.75.75 0 010 1.06l-1.72 1.72a.75.75 0 01-1.1-.02l-.05-.06-1.72-1.72a.75.75 0 010-1.06l1.72-1.72zM8.5 6.75a.75.75 0 01.8-.7l.12.01L11.5 6.5l2.08-.42a.75.75 0 01.8.7l.01.12L13.5 8.5l.42 2.08a.75.75 0 01-.7.8l-.12.01L11.5 11.5l-2.08.42a.75.75 0 01-.8-.7l-.01-.12L9.5 8.5l-.42-2.08a.75.75 0 01.7-.8zM18 12a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0V13.5A.75.75 0 0118 12zM6 12a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0V13.5A.75.75 0 016 12zM12 18a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0V19.5A.75.75 0 0112 18zM12 6a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0V7.5A.75.75 0 0112 6z" />
+// SparklesIcon (using a cleaner, more standard version)
+const SparklesIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+        <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39-1.154 2.116.61.391c.523.317.974.787 1.296 1.338l-.59 4.292a.75.75 0 001.054.807l4.108-2.559 4.108 2.559a.75.75 0 001.054-.807l-.59-4.292c.322-.551.773-1.021 1.296-1.338l.61-.391-1.154-2.116-4.753-.39L10.868 2.884zM6.464 10c-.377-.213-.837-.338-1.33-.365a.75.75 0 00-.676.93L4.71 14.31a.75.75 0 00.676.599l3.065-.04a.75.75 0 00.553-.44l1.445-2.887a.75.75 0 00-1.299-.769l-.019.033-.491.987c-.377.753-1.211.988-1.96.614A4.54 4.54 0 016.464 10zM14.836 11.064c.377-.753 1.211-.988 1.96-.614a4.542 4.542 0 011.054.675l2.746-3.76a.75.75 0 00-.676-.93l-3.065.04a.75.75 0 00-.553.44L14.04 9.25a.75.75 0 001.3.768l.019-.033.491-.987z" clipRule="evenodd" />
     </svg>
 );
 
@@ -54,10 +61,6 @@ export default function DashboardPage() {
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
 
-    const [geminiTestResponse, setGeminiTestResponse] = useState<string | null>(null);
-    const [isLoadingGeminiTest, setIsLoadingGeminiTest] = useState<boolean>(false);
-    const [errorGeminiTest, setErrorGeminiTest] = useState<string | null>(null);
-
     const [aiDescription, setAiDescription] = useState<string | null>(null);
     const [isLoadingAiDescription, setIsLoadingAiDescription] = useState<boolean>(false);
     const [errorAiDescription, setErrorAiDescription] = useState<string | null>(null);
@@ -65,9 +68,11 @@ export default function DashboardPage() {
     useEffect(() => {
         setIsMounted(true);
         const today = new Date();
-        const oneYearAgo = new Date(new Date().setFullYear(today.getFullYear() - 1));
-        setStartDate(format(oneYearAgo, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
+        const defaultEndDate = format(today, 'yyyy-MM-dd');
+        const defaultStartDate = format(new Date(today.setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd'); // Default to 5 years ago
+
+        setStartDate(defaultStartDate);
+        setEndDate(defaultEndDate);
 
         const fetchIndicators = async () => {
             setIsLoadingIndicators(true);
@@ -78,8 +83,12 @@ export default function DashboardPage() {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Failed to fetch indicators: ${response.statusText}`);
                 }
-                const data = await response.json();
+                const data: Indicator[] = await response.json();
                 setIndicators(data);
+                // Optionally, select the first indicator by default
+                // if (data.length > 0) {
+                //     setSelectedIndicatorKey(data[0].IndicatorKey.toString());
+                // }
             } catch (err) {
                 setErrorIndicators((err as Error).message);
             } finally {
@@ -93,8 +102,6 @@ export default function DashboardPage() {
         setSelectedIndicatorKey(event.target.value);
         setChartData([]);
         setCurrentChartIndicator(null);
-        setGeminiTestResponse(null);
-        setErrorGeminiTest(null);
         setAiDescription(null);
         setErrorAiDescription(null);
     };
@@ -102,10 +109,20 @@ export default function DashboardPage() {
     const handleFetchChartData = async () => {
         setAiDescription(null);
         setErrorAiDescription(null);
+
         if (!selectedIndicatorKey) {
-            alert("Please select an indicator.");
+            setErrorChartData("Please select an indicator.");
             return;
         }
+        if (!startDate || !endDate) {
+            setErrorChartData("Please select a valid start and end date.");
+            return;
+        }
+        if (new Date(startDate) > new Date(endDate)) {
+            setErrorChartData("Start date cannot be after end date.");
+            return;
+        }
+
         setIsLoadingChartData(true);
         setErrorChartData(null);
         setChartData([]);
@@ -125,6 +142,9 @@ export default function DashboardPage() {
             }
             const data: ChartDataPoint[] = await response.json();
             setChartData(data.map(point => ({ ...point, value: Number(point.value) })));
+            if (data.length === 0) {
+                setErrorChartData("No data found for the selected criteria. Try adjusting the date range or indicator.");
+            }
         } catch (err) {
             setErrorChartData((err as Error).message);
         } finally {
@@ -132,27 +152,9 @@ export default function DashboardPage() {
         }
     };
 
-    const handleTestGeminiApi = async () => {
-        setIsLoadingGeminiTest(true);
-        setErrorGeminiTest(null);
-        setGeminiTestResponse(null);
-        try {
-            const response = await fetch('/api/test-gemini');
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || `Gemini API Test Failed: ${response.statusText} (Status: ${response.status})`);
-            }
-            setGeminiTestResponse(data.message);
-        } catch (err) {
-            setErrorGeminiTest((err as Error).message);
-        } finally {
-            setIsLoadingGeminiTest(false);
-        }
-    };
-
     const handleGenerateAiDescription = async () => {
         if (!chartData || chartData.length === 0 || !currentChartIndicator) {
-            alert("Please display a chart first before generating a description.");
+            alert("Please display a chart with data first before generating a description.");
             return;
         }
         setIsLoadingAiDescription(true);
@@ -183,42 +185,43 @@ export default function DashboardPage() {
     };
 
     if (!isMounted) {
-        // Render a minimal skeleton or null during server-side rendering / hydration phase
         return (
-            <div className="min-h-screen bg-gray-900 p-4 md:p-8 animate-pulse">
-                <div className="h-20 bg-gray-700 rounded-lg mb-8"></div>
-                <div className="h-64 bg-gray-700 rounded-lg mb-8"></div>
-                <div className="h-40 bg-gray-700 rounded-lg"></div>
+            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] p-4 md:p-8">
+                <div className="w-16 h-16 border-4 border-sky-500 border-dashed rounded-full animate-spin"></div>
+                <p className="mt-4 text-slate-400">Loading Dashboard...</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-10 p-4 md:p-8 bg-gray-900 text-gray-100 min-h-screen">
-            {/* Indicator Selection Section */}
-            <section className="bg-gray-800 p-6 rounded-xl shadow-2xl">
-                <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-sky-400">
-                    Economic Indicator Dashboard
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 items-end">
-                    <div className="md:col-span-2 lg:col-span-2">
-                        <label htmlFor="indicator-select" className="block text-sm font-medium text-gray-300 mb-1.5">
+        <div className="space-y-8 p-4 md:p-6 lg:p-8">
+            {/* Filters Section */}
+            <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70">
+                <div className="flex items-center mb-5">
+                    <FilterIcon />
+                    <h2 className="text-xl sm:text-2xl font-semibold text-sky-300 ml-2">
+                        Filter Economic Indicators
+                    </h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-5 items-end">
+                    <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                        <label htmlFor="indicator-select" className="block text-sm font-medium text-slate-300 mb-1.5">
                             Select Indicator
                         </label>
                         {isLoadingIndicators ? (
-                            <div className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-gray-400">Loading indicators...</div>
+                            <div className="w-full h-11 p-3 bg-slate-700 border border-slate-600 rounded-lg text-slate-400 animate-pulse">Loading...</div>
                         ) : errorIndicators ? (
-                            <div className="w-full p-3 bg-red-700/30 border border-red-600 rounded-md text-red-400">{errorIndicators}</div>
+                            <div className="w-full p-3 bg-red-700/20 border border-red-600/50 rounded-lg text-red-400">{errorIndicators}</div>
                         ) : (
                             <select
                                 id="indicator-select"
                                 value={selectedIndicatorKey}
                                 onChange={handleIndicatorChange}
-                                className="w-full p-3 bg-gray-700 border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-white shadow-sm appearance-none"
+                                className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm appearance-none"
                             >
-                                <option value="" disabled className="text-gray-400">-- Select an Indicator --</option>
+                                <option value="" disabled className="text-slate-500">-- Select an Indicator --</option>
                                 {indicators.map((indicator) => (
-                                    <option key={indicator.IndicatorKey} value={indicator.IndicatorKey.toString()} className="bg-gray-800 hover:bg-gray-700">
+                                    <option key={indicator.IndicatorKey} value={indicator.IndicatorKey.toString()} className="bg-slate-800 hover:bg-slate-700">
                                         {indicator.DisplayName}
                                     </option>
                                 ))}
@@ -227,7 +230,7 @@ export default function DashboardPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="start-date" className="block text-sm font-medium text-gray-300 mb-1.5">
+                        <label htmlFor="start-date" className="block text-sm font-medium text-slate-300 mb-1.5">
                             Start Date
                         </label>
                         <input
@@ -235,12 +238,12 @@ export default function DashboardPage() {
                             id="start-date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full p-3 bg-gray-700 border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-white shadow-sm"
+                            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="end-date" className="block text-sm font-medium text-gray-300 mb-1.5">
+                        <label htmlFor="end-date" className="block text-sm font-medium text-slate-300 mb-1.5">
                             End Date
                         </label>
                         <input
@@ -248,15 +251,15 @@ export default function DashboardPage() {
                             id="end-date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full p-3 bg-gray-700 border-gray-600 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-white shadow-sm"
+                            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm"
                         />
                     </div>
 
-                    <div className="md:col-span-2 lg:col-span-4 flex justify-end pt-2">
+                    <div className="sm:col-span-full lg:col-span-1 xl:col-span-4 flex justify-end pt-3">
                         <button
                             onClick={handleFetchChartData}
                             disabled={!selectedIndicatorKey || isLoadingChartData}
-                            className="flex items-center justify-center gap-2 w-full md:w-auto bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3 px-6 rounded-md disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg"
+                            className="flex items-center justify-center gap-2.5 w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-7 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 transform hover:scale-[1.02]"
                         >
                             <ChartBarIcon className="h-5 w-5" />
                             {isLoadingChartData ? "Loading Chart..." : "Display Chart"}
@@ -266,115 +269,81 @@ export default function DashboardPage() {
             </section>
 
             {/* Visualization & AI Insights Section */}
-            { (currentChartIndicator || isLoadingChartData || errorChartData) && (
-                <section className="bg-gray-800 p-6 rounded-xl shadow-2xl">
-                    <h2 className="text-xl sm:text-2xl font-semibold mb-1 text-sky-400">
-                        {currentChartIndicator ? `Visualization: ${currentChartIndicator.DisplayName}` : "Visualization"}
-                    </h2>
-                    <p className="text-xs text-gray-400 mb-4">
-                        {currentChartIndicator ? `Unit: ${currentChartIndicator.StandardUnit} | Category: ${currentChartIndicator.IndicatorCategory}` : "Awaiting selection..."}
+            <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70 min-h-[500px]"> {/* Ensure a min height */}
+                <h2 className="text-xl sm:text-2xl font-semibold mb-1 text-sky-300">
+                    {currentChartIndicator ? `Chart: ${currentChartIndicator.DisplayName}` : "Data Visualization"}
+                </h2>
+                {currentChartIndicator && (
+                    <p className="text-xs text-slate-400 mb-5">
+                        Unit: {currentChartIndicator.StandardUnit} | Category: {currentChartIndicator.IndicatorCategory}
+                        {currentChartIndicator.IndicatorSubCategory && ` > ${currentChartIndicator.IndicatorSubCategory}`}
                     </p>
+                )}
 
-                    <div id="chart-area" className="h-[380px] bg-gray-700/50 p-4 rounded-lg border border-gray-700/80 flex items-center justify-center">
-                        {isLoadingChartData && (
-                            <div className="flex flex-col items-center text-gray-400">
-                                <svg className="animate-spin h-8 w-8 text-sky-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Loading chart data...
-                            </div>
-                        )}
-                        {errorChartData && !isLoadingChartData && (
-                            <div className="text-center text-red-400 p-4 border border-red-600 bg-red-700/30 rounded-md">
-                                <p className="font-semibold">Error Loading Chart Data</p>
-                                <p className="text-sm">{errorChartData}</p>
-                            </div>
-                        )}
-                        {!isLoadingChartData && !errorChartData && chartData.length > 0 && currentChartIndicator && (
-                            <EconomicChart
-                                chartData={chartData}
-                                indicatorName={currentChartIndicator.DisplayName || currentChartIndicator.StandardizedIndicatorName}
-                                unit={currentChartIndicator.StandardUnit}
-                            />
-                        )}
-                        {!isLoadingChartData && !errorChartData && chartData.length === 0 && currentChartIndicator && (
-                            <div className="text-center text-gray-400">
-                                No data available for the selected indicator and criteria.
-                            </div>
-                        )}
-                        {!isLoadingChartData && !errorChartData && chartData.length === 0 && !currentChartIndicator && !isLoadingChartData && (
-                            <div className="text-center text-gray-500">
-                                Select an indicator and date range, then click "Display Chart".
-                            </div>
-                        )}
-                    </div>
-
-                    {/* AI Chart Description UI */}
-                    {chartData.length > 0 && currentChartIndicator && !isLoadingChartData && !errorChartData && (
-                        <div className="mt-8 pt-6 border-t border-gray-700">
-                            <h3 className="text-lg font-semibold text-sky-400 mb-3 flex items-center">
-                                <SparklesIcon className="h-6 w-6 mr-2 text-yellow-400" />
-                                AI Generated Insights
-                            </h3>
-                            <button
-                                onClick={handleGenerateAiDescription}
-                                disabled={isLoadingAiDescription}
-                                className="flex items-center justify-center gap-2 mb-4 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 px-5 rounded-md disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow hover:shadow-md"
-                            >
-                                <LightBulbIcon className="h-5 w-5" />
-                                {isLoadingAiDescription ? "Generating Insights..." : "Get AI Insights"}
-                            </button>
-                            {isLoadingAiDescription && (
-                                <div className="flex items-center text-sm text-gray-400 p-3 bg-gray-700/50 rounded-md">
-                                    <svg className="animate-spin h-5 w-5 text-sky-500 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    AI is analyzing the data, please wait...
-                                </div>
-                            )}
-                            {errorAiDescription && !isLoadingAiDescription && (
-                                <div className="mt-2 p-4 bg-red-800/40 border border-red-700 rounded-md text-red-300">
-                                    <p className="font-semibold text-red-200 mb-1">Error Generating AI Description:</p>
-                                    <p className="text-sm whitespace-pre-wrap break-words">{errorAiDescription}</p>
-                                </div>
-                            )}
-                            {aiDescription && !isLoadingAiDescription && (
-                                <div className="mt-2 p-4 bg-gray-700/80 border border-gray-600/70 rounded-lg shadow-inner">
-                                    <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{aiDescription}</p>
-                                </div>
-                            )}
+                <div className="h-[380px] bg-slate-700/30 p-3 sm:p-4 rounded-lg border border-slate-600/50 flex items-center justify-center">
+                    {isLoadingChartData && (
+                        <div className="flex flex-col items-center text-slate-400">
+                            <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin mb-3"></div>
+                            Loading chart data...
                         </div>
                     )}
-                </section>
-            )}
+                    {!isLoadingChartData && errorChartData && (
+                        <div className="text-center text-red-400 p-4 border border-red-600/50 bg-red-900/30 rounded-lg">
+                            <p className="font-semibold text-red-300">Error Loading Chart</p>
+                            <p className="text-sm">{errorChartData}</p>
+                        </div>
+                    )}
+                    {!isLoadingChartData && !errorChartData && chartData.length > 0 && currentChartIndicator && (
+                        <EconomicChart
+                            chartData={chartData}
+                            indicatorName={currentChartIndicator.DisplayName}
+                            unit={currentChartIndicator.StandardUnit}
+                        />
+                    )}
+                    {!isLoadingChartData && !errorChartData && chartData.length === 0 && (
+                        <div className="text-center text-slate-500">
+                            {currentChartIndicator ? "No data for selected criteria." : "Select an indicator and date range to display the chart."}
+                        </div>
+                    )}
+                </div>
 
-
-            {/* Gemini Test Section - Kept for consistency, you might remove or integrate its functionality elsewhere */}
-            <section className="bg-gray-800 p-6 rounded-xl shadow-2xl opacity-80 hover:opacity-100 transition-opacity">
-                <h2 className="text-lg font-semibold mb-4 text-gray-400">Developer Tools</h2>
-                <button
-                    onClick={handleTestGeminiApi}
-                    disabled={isLoadingGeminiTest}
-                    className="bg-purple-600 hover:bg-purple-500 text-white font-medium py-2 px-4 rounded-md disabled:opacity-60 transition-colors text-sm"
-                >
-                    {isLoadingGeminiTest ? "Testing API..." : "Test Gemini Connection"}
-                </button>
-                {isLoadingGeminiTest && <p className="mt-3 text-xs text-gray-500">Contacting Gemini, please wait...</p>}
-                {errorGeminiTest && (
-                    <div className="mt-3 p-2.5 bg-red-800/40 border border-red-700 rounded-md text-xs">
-                        <p className="font-semibold text-red-300">Error:</p>
-                        <p className="text-red-400 whitespace-pre-wrap break-words">{errorGeminiTest}</p>
-                    </div>
-                )}
-                {geminiTestResponse && (
-                    <div className="mt-3 p-2.5 bg-gray-700/80 border border-gray-600/70 rounded-md text-xs">
-                        <h3 className="font-semibold text-gray-300">Gemini Said:</h3>
-                        <p className="text-gray-400 whitespace-pre-wrap">{geminiTestResponse}</p>
+                {/* AI Chart Description UI */}
+                {isMounted && chartData.length > 0 && currentChartIndicator && !isLoadingChartData && !errorChartData && (
+                    <div className="mt-8 pt-6 border-t border-slate-700">
+                        <h3 className="text-lg font-semibold text-sky-300 mb-4 flex items-center">
+                            <SparklesIcon />
+                            <span className="ml-2">AI Generated Insights</span>
+                        </h3>
+                        <button
+                            onClick={handleGenerateAiDescription}
+                            disabled={isLoadingAiDescription}
+                            className="flex items-center justify-center gap-2.5 mb-4 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 px-6 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200 shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 transform hover:scale-[1.02]"
+                        >
+                            <LightBulbIcon className="h-5 w-5" />
+                            {isLoadingAiDescription ? "Generating Analysis..." : "Generate AI Analysis"}
+                        </button>
+                        {isLoadingAiDescription && (
+                            <div className="flex items-center text-sm text-slate-400 p-3 bg-slate-700/40 rounded-lg">
+                                <div className="w-5 h-5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin mr-2.5"></div>
+                                AI is analyzing the data, please wait...
+                            </div>
+                        )}
+                        {errorAiDescription && !isLoadingAiDescription && (
+                            <div className="mt-2 p-4 bg-red-900/40 border border-red-700/60 rounded-lg text-red-300">
+                                <p className="font-semibold text-red-200 mb-1">Error Generating AI Insights:</p>
+                                <p className="text-sm whitespace-pre-wrap break-words">{errorAiDescription}</p>
+                            </div>
+                        )}
+                        {aiDescription && !isLoadingAiDescription && (
+                            <div className="mt-2 p-4 bg-slate-700/50 backdrop-blur-sm border border-slate-600/60 rounded-lg shadow-inner">
+                                <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed whitespace-pre-wrap">{aiDescription}</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </section>
+
+            {/* Developer Tools Section has been removed */}
         </div>
     );
 }
