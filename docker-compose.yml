@@ -1,0 +1,62 @@
+# mortaki0-moroccan_economy_dwh_webapp/docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # For Next.js app itself
+      - NODE_ENV=development # Set to development for local, override for prod
+      - PORT=3000
+      # --- DATABASE CONNECTION DETAILS FOR THE NEXT.JS APP ---
+      - DB_HOST=db # Connect to the 'db' service name
+      - DB_USER=root
+      - DB_PASSWORD= # Empty password
+      - DB_NAME=moroccan_economy_dwh_local
+      - DB_PORT=3306
+      # --- END DATABASE CONNECTION DETAILS ---
+      # AI API Key - use a .env file for this locally
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+    volumes:
+      # Mount source code for hot-reloading in development
+      # For production, remove this volume or use a specific build context
+      - .:/app
+      - /app/node_modules # Don't mount local node_modules over container's
+      - /app/.next # Persist .next folder between runs for faster rebuilds in dev
+    depends_on:
+      db:
+        condition: service_healthy # Wait for DB to be ready
+    command: npm run dev # For development, use npm run start for production-like testing
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306" # Expose MySQL port to host for direct access if needed
+    environment:
+      # --- MYSQL CONTAINER CONFIGURATION ---
+      MYSQL_DATABASE: moroccan_economy_dwh_local # Creates this database
+      # MYSQL_USER: root # No need to specify user if using root with empty password
+      # MYSQL_PASSWORD:  # No need to specify password if using root with empty password
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes" # Allows root user to have an empty password for connections
+      MYSQL_ROOT_PASSWORD: "a_secure_root_password_for_mysql_itself" # MySQL requires root to have A password for its own setup. This can be different from the connection password if MYSQL_ALLOW_EMPTY_PASSWORD is 'yes'.
+      # --- END MYSQL CONTAINER CONFIGURATION ---
+    volumes:
+      - mysql_data:/var/lib/mysql # Persist database data
+      # You can add an init script to create tables/schemas on first run
+      # Create an empty file named e.g. init-db/init.sql in your project root
+      # and uncomment the line below if you have SQL to run on startup.
+      # - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      # Test connection as root with allowed empty password
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-uroot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:
