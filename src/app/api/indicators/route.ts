@@ -1,4 +1,3 @@
-// src/app/api/indicators/route.ts
 import { queryDatabase } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
@@ -8,13 +7,14 @@ export async function GET() {
             SELECT
                 IndicatorKey,
                 StandardizedIndicatorName,
-                DisplayName, -- << ADDED
+                DisplayName,
                 IndicatorCategory,
                 IndicatorSubCategory,
                 StandardUnit
-            FROM DimIndicator
-            ORDER BY IndicatorCategory, DisplayName; -- Optionally order by DisplayName
+            FROM dimindicator
+            ORDER BY IndicatorCategory, DisplayName;
         `;
+
         const indicators = await queryDatabase(sql);
 
         return NextResponse.json(indicators);

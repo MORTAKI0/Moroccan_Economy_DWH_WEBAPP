@@ -1,4 +1,3 @@
-// src/app/api/indicator-data/route.ts
 import { queryDatabase } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -14,12 +13,12 @@ export async function GET(request: NextRequest) {
 
     try {
         let sql = `
-            SELECT 
+            SELECT
                 dt.FullDate as date,
                 fe.IndicatorValue as value
-            FROM FactEconomicIndicators fe
-            JOIN DimTime dt ON fe.TimeKey = dt.TimeKey
-            WHERE fe.IndicatorKey = ? 
+            FROM facteconomicindicators fe
+                JOIN dimtime dt ON fe.TimeKey = dt.TimeKey
+            WHERE fe.IndicatorKey = ?
         `;
         const params: any[] = [indicatorKey];
 
