@@ -32,6 +32,13 @@ const SparklesIcon = () => (
     </svg>
 );
 
+const CalendarIcon = () => (
+    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    </svg>
+);
+
+
 interface Indicator {
     IndicatorKey: number;
     StandardizedIndicatorName: string;
@@ -47,13 +54,10 @@ interface ChartDataPoint {
     value: number;
 }
 
-// Interface for jsPDF instance when extended by jspdf-autotable
 interface jsPDFWithAutoTable extends jsPDF {
     lastAutoTable: {
         finalY: number;
-        // Include other properties from lastAutoTable if needed
     };
-    // Add other autoTable specific methods or properties if used directly on doc
 }
 
 
@@ -73,6 +77,11 @@ export default function DashboardPage() {
     const [isLoadingAiDescription, setIsLoadingAiDescription] = useState(false);
     const [errorAiDescription, setErrorAiDescription] = useState<string | null>(null);
 
+    // New state for PDF report year
+    const [pdfReportYear, setPdfReportYear] = useState<number>(new Date().getFullYear());
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+
     useEffect(() => {
         setIsMounted(true);
         const today = new Date();
@@ -80,6 +89,7 @@ export default function DashboardPage() {
         const defaultStartDate = format(new Date(new Date().setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd');
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
+        setPdfReportYear(today.getFullYear() -1); // Default to previous year for annual report
 
         const fetchIndicators = async () => {
             setIsLoadingIndicators(true);
@@ -101,7 +111,6 @@ export default function DashboardPage() {
         fetchIndicators();
     }, []);
 
-    // ----------- Handlers -----------
     const handleIndicatorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedIndicatorKey(event.target.value);
         setChartData([]);
@@ -185,166 +194,173 @@ export default function DashboardPage() {
         }
     };
 
-    // ----------- PDF Handler -----------
     const handleDownloadPdf = async () => {
-        let year: number;
-        if (startDate) {
-            year = new Date(startDate).getFullYear();
-        } else {
-            year = new Date().getFullYear();
-        }
-        const response = await fetch(`/api/indicators-annual-report?year=${year}`);
-        if (!response.ok) {
-            alert("Failed to fetch annual report data!");
-            return;
-        }
-        const { indicators: reportIndicators, aiSummary, generatedAt } = await response.json();
-        const doc: jsPDFWithAutoTable = new jsPDF() as jsPDFWithAutoTable; // Cast to include autoTable properties
-
-        // --- COVER PAGE ---
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
-        doc.text('Moroccan Economic Indicators Report', 105, 30, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(14);
-        doc.text(`Year: ${year}`, 105, 42, { align: 'center' });
-        doc.setFontSize(11);
-        doc.text(`Generated on: ${new Date(generatedAt).toLocaleString()}`, 105, 50, { align: 'center' });
-        doc.setFontSize(12);
-        doc.setTextColor(60, 60, 60);
-        doc.text(
-            "A comprehensive annual overview of Morocco's key economic indicators and AI-generated insights.",
-            105,
-            62,
-            { align: 'center', maxWidth: 180 }
-        );
-        doc.setDrawColor(51, 105, 232);
-        doc.setLineWidth(1);
-        doc.line(40, 70, 170, 70);
-
-        // --- EXECUTIVE SUMMARY (paginated) ---
-        doc.addPage();
-        doc.setFontSize(16);
-        doc.setTextColor(41, 128, 185);
-        doc.text('Annual Economic Review (AI)', 14, 24);
-
-        const pageWidth   = doc.internal.pageSize.getWidth();
-        const pageHeight  = doc.internal.pageSize.getHeight();
-        const margin      = 14;
-        const maxLineWidth= pageWidth - margin * 2;
-        const lineHeight  = 7;
-        let cursorY       = 32;
-
-        const lines = doc.splitTextToSize(aiSummary || "AI summary not available.", maxLineWidth);
-
-        for (const line of lines) {
-            if (cursorY + lineHeight > pageHeight - margin) {
-                doc.addPage();
-                cursorY = margin;
+        setIsDownloadingPdf(true);
+        try {
+            // Use the state pdfReportYear
+            const response = await fetch(`/api/indicators-annual-report?year=${pdfReportYear}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                alert(`Failed to fetch annual report data: ${errorData.message || response.statusText}`);
+                return;
             }
+            const { indicators: reportIndicators, aiSummary, generatedAt } = await response.json();
+            const doc: jsPDFWithAutoTable = new jsPDF() as jsPDFWithAutoTable;
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(22);
+            doc.text('Moroccan Economic Indicators Report', 105, 30, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(14);
+            doc.text(`Year: ${pdfReportYear}`, 105, 42, { align: 'center' }); // Use pdfReportYear
             doc.setFontSize(11);
-            doc.setTextColor(30, 30, 30);
-            doc.text(line, margin, cursorY);
-            cursorY += lineHeight;
-        }
+            doc.text(`Generated on: ${new Date(generatedAt).toLocaleString()}`, 105, 50, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setTextColor(60, 60, 60);
+            doc.text(
+                "A comprehensive annual overview of Morocco's key economic indicators and AI-generated insights.",
+                105,
+                62,
+                { align: 'center', maxWidth: 180 }
+            );
+            doc.setDrawColor(51, 105, 232);
+            doc.setLineWidth(1);
+            doc.line(40, 70, 170, 70);
 
-        let keyInsightsStartY = cursorY + 5;
+            doc.addPage();
+            doc.setFontSize(16);
+            doc.setTextColor(41, 128, 185);
+            doc.text('Annual Economic Review (AI)', 14, 24);
 
-        const keyInsightsMatch = aiSummary?.match(/Key Insights:([\s\S]*)/i);
-        if (keyInsightsMatch) {
-            const insights = keyInsightsMatch[1];
-            const bullets = insights.match(/[-*]\s+.+/g);
-            if (bullets && bullets.length > 0) {
-                if (keyInsightsStartY + 20 > pageHeight - margin) {
+            const pageWidth   = doc.internal.pageSize.getWidth();
+            const pageHeight  = doc.internal.pageSize.getHeight();
+            const margin      = 14;
+            const maxLineWidth= pageWidth - margin * 2;
+            const lineHeight  = 7;
+            let cursorY       = 32;
+
+            const lines = doc.splitTextToSize(aiSummary || "AI summary not available.", maxLineWidth);
+
+            for (const line of lines) {
+                if (cursorY + lineHeight > pageHeight - margin) {
                     doc.addPage();
-                    keyInsightsStartY = margin;
+                    cursorY = margin;
                 }
-                doc.setFontSize(13);
-                doc.setTextColor(41, 128, 185);
-                doc.text('Key Insights', 14, keyInsightsStartY);
-                keyInsightsStartY += 7;
                 doc.setFontSize(11);
                 doc.setTextColor(30, 30, 30);
-                for (const b of bullets) {
-                    const bulletText = `• ${b.replace(/^[-*]\s+/, '')}`;
-                    const splitBullet = doc.splitTextToSize(bulletText, maxLineWidth - 4);
-                    for (const bulletLine of splitBullet) {
-                        if (keyInsightsStartY + lineHeight > pageHeight - margin) {
-                            doc.addPage();
-                            keyInsightsStartY = margin;
-                        }
-                        doc.text(bulletLine, 18, keyInsightsStartY);
-                        keyInsightsStartY += lineHeight;
-                    }
-                    if (keyInsightsStartY > pageHeight - margin - lineHeight) {
+                doc.text(line, margin, cursorY);
+                cursorY += lineHeight;
+            }
+
+            let keyInsightsStartY = cursorY + 10; // Increased gap for Key Insights
+
+            const keyInsightsMatch = aiSummary?.match(/Key Insights:([\s\S]*)/i) ?? aiSummary?.match(/\* (.+)/gmi); // More robust regex for key insights
+            if (keyInsightsMatch) {
+                // Determine if we're dealing with the "Key Insights:" block or just bullet points
+                const insightsText = keyInsightsMatch[1] ? keyInsightsMatch[1].trim() : aiSummary;
+                const bullets = insightsText.match(/^\s*[-*]\s+(.+)/gm);
+
+
+                if (bullets && bullets.length > 0) {
+                    if (keyInsightsStartY + 20 > pageHeight - margin) {
                         doc.addPage();
                         keyInsightsStartY = margin;
                     }
+                    doc.setFontSize(13);
+                    doc.setTextColor(41, 128, 185);
+                    doc.text('Key Insights', 14, keyInsightsStartY);
+                    keyInsightsStartY += 7;
+                    doc.setFontSize(11);
+                    doc.setTextColor(30, 30, 30);
+                    for (const b of bullets) {
+                        const bulletContent = b.replace(/^\s*[-*]\s+/, '').trim();
+                        const splitBullet = doc.splitTextToSize(`• ${bulletContent}`, maxLineWidth - 4);
+                        for (const bulletLine of splitBullet) {
+                            if (keyInsightsStartY + lineHeight > pageHeight - margin) {
+                                doc.addPage();
+                                keyInsightsStartY = margin;
+                            }
+                            doc.text(bulletLine, 18, keyInsightsStartY);
+                            keyInsightsStartY += lineHeight;
+                        }
+                        if (keyInsightsStartY > pageHeight - margin - lineHeight * 2) { // Add a bit more buffer
+                            doc.addPage(); keyInsightsStartY = margin;
+                        }
+                    }
                 }
             }
-        }
 
-        doc.addPage();
-        let indicatorTableStartY = 22;
-        doc.setFontSize(15);
-        doc.setTextColor(41, 128, 185);
-        doc.text('All Indicators', 14, indicatorTableStartY);
-        indicatorTableStartY += 8;
 
-        const grouped: Record<string, Indicator[]> = {};
-        for (const ind of reportIndicators) {
-            if (!grouped[ind.IndicatorCategory]) grouped[ind.IndicatorCategory] = [];
-            grouped[ind.IndicatorCategory].push(ind);
-        }
+            doc.addPage();
+            let indicatorTableStartY = 22;
+            doc.setFontSize(15);
+            doc.setTextColor(41, 128, 185);
+            doc.text('All Indicators', 14, indicatorTableStartY);
+            indicatorTableStartY += 8;
 
-        for (const cat of Object.keys(grouped)) {
-            if (indicatorTableStartY + 15 > pageHeight - margin) {
-                doc.addPage();
-                indicatorTableStartY = margin;
+            const grouped: Record<string, Indicator[]> = {};
+            for (const ind of reportIndicators) {
+                if (!grouped[ind.IndicatorCategory]) grouped[ind.IndicatorCategory] = [];
+                grouped[ind.IndicatorCategory].push(ind);
             }
-            doc.setFontSize(13);
-            doc.setTextColor(51, 105, 232);
-            doc.text(cat, 16, indicatorTableStartY);
-            autoTable(doc, {
-                startY: indicatorTableStartY + 4,
-                head: [['Name', 'Subcategory', 'Value', 'Unit']],
-                body: grouped[cat].map(ind => [
-                    ind.DisplayName,
-                    ind.IndicatorSubCategory || '-',
-                    ind.value ?? '-',
-                    ind.StandardUnit,
-                ]),
-                theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
-                bodyStyles: { fontSize: 10 },
-                alternateRowStyles: { fillColor: [230, 240, 255] },
-                margin: { left: 16, right: 10 },
-                tableWidth: 180,
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                didDrawPage: (_data) => { // FIX 1: ESLint disable for unused _data
+
+            for (const cat of Object.keys(grouped).sort()) { // Sort categories alphabetically
+                if (indicatorTableStartY + 15 > pageHeight - margin) {
+                    doc.addPage();
                     indicatorTableStartY = margin;
                 }
-            });
-            indicatorTableStartY = doc.lastAutoTable.finalY + 12; // Use doc directly as it's now typed jsPDFWithAutoTable
-        }
+                doc.setFontSize(13);
+                doc.setTextColor(51, 105, 232);
+                doc.text(cat, 16, indicatorTableStartY);
+                autoTable(doc, {
+                    startY: indicatorTableStartY + 4,
+                    head: [['Name', 'Subcategory', 'Value', 'Unit']],
+                    body: grouped[cat].map(ind => [
+                        ind.DisplayName,
+                        ind.IndicatorSubCategory || '-',
+                        ind.value != null ? ind.value.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-', // Format numbers
+                        ind.StandardUnit,
+                    ]),
+                    theme: 'striped',
+                    headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 10 },
+                    alternateRowStyles: { fillColor: [230, 240, 255] },
+                    margin: { left: 16, right: 10 },
+                    tableWidth: 180,
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    didDrawPage: (_data) => {
+                        indicatorTableStartY = margin;
+                    }
+                });
+                indicatorTableStartY = doc.lastAutoTable.finalY + 12;
+            }
 
-        // --- FOOTER on each page ---
-        const pageCount = doc.internal.pages.length; // FIX 2: Use pages.length for page count
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(9);
-            doc.setTextColor(150, 150, 150);
-            doc.text(
-                'Source: Moroccan Economy Dashboard | Data: HCP, Bank Al-Maghrib, World Bank | Powered by AI | For informational purposes only.',
-                pageWidth / 2,
-                pageHeight - 8,
-                { align: 'center' }
-            );
-            doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 10, pageHeight - 8, { align: 'right'});
-        }
+            const pageCount = doc.internal.pages.length;
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(9);
+                doc.setTextColor(150, 150, 150);
+                doc.text(
+                    'Source: Moroccan Economy Dashboard | Data: HCP, Bank Al-Maghrib, World Bank | Powered by AI | For informational purposes only.',
+                    pageWidth / 2,
+                    pageHeight - 8,
+                    { align: 'center' }
+                );
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 10, pageHeight - 8, { align: 'right'});
+            }
 
-        doc.save(`Moroccan_Economy_Report_${year}.pdf`);
+            doc.save(`Moroccan_Economy_Report_${pdfReportYear}.pdf`); // Use pdfReportYear
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("An error occurred while generating the PDF report.");
+        } finally {
+            setIsDownloadingPdf(false);
+        }
     };
+
+    // Generate year options for the dropdown (e.g., last 20 years)
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: 20 }, (_, i) => currentYear - i);
 
 
     if (!isMounted) {
@@ -358,21 +374,57 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8 p-4 md:p-6 lg:p-8">
-            {/* PDF Button */}
-            <div className="flex justify-end mb-2">
-                <button
-                    onClick={handleDownloadPdf}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg mb-4 transition-all shadow"
-                >
-                    Download Annual PDF Report
-                </button>
-            </div>
+            {/* PDF Report Section */}
+            <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70">
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold text-sky-300 mb-3 sm:mb-0 flex items-center">
+                        <CalendarIcon />
+                        <span className="ml-2">Annual Economic Report</span>
+                    </h2>
+                </div>
+                <div className="flex flex-col sm:flex-row items-end gap-4">
+                    <div className="flex-grow sm:flex-grow-0">
+                        <label htmlFor="pdf-year-select" className="block text-sm font-medium text-slate-300 mb-1.5">
+                            Select Report Year
+                        </label>
+                        <select
+                            id="pdf-year-select"
+                            value={pdfReportYear}
+                            onChange={(e) => setPdfReportYear(Number(e.target.value))}
+                            className="w-full sm:w-auto p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm appearance-none"
+                            disabled={isDownloadingPdf}
+                        >
+                            {yearOptions.map(year => (
+                                <option key={year} value={year} className="bg-slate-800 hover:bg-slate-700">
+                                    {year}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <button
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloadingPdf}
+                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {isDownloadingPdf ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Generating Report...
+                            </>
+                        ) : (
+                            "Download PDF Report"
+                        )}
+                    </button>
+                </div>
+            </section>
+
+
             {/* Filters Section */}
             <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70">
                 <div className="flex items-center mb-5">
                     <FilterIcon />
                     <h2 className="text-xl sm:text-2xl font-semibold text-sky-300 ml-2">
-                        Filter Economic Indicators
+                        Filter Economic Indicators for Chart
                     </h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-5 items-end">
@@ -474,12 +526,11 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </div>
-                {/* AI Chart Description UI */}
                 {isMounted && chartData.length > 0 && currentChartIndicator && !isLoadingChartData && !errorChartData && (
                     <div className="mt-8 pt-6 border-t border-slate-700">
                         <h3 className="text-lg font-semibold text-sky-300 mb-4 flex items-center">
                             <SparklesIcon />
-                            <span className="ml-2">AI Generated Insights</span>
+                            <span className="ml-2">AI Generated Chart Insights</span>
                         </h3>
                         <button
                             onClick={handleGenerateAiDescription}

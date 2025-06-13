@@ -2,27 +2,36 @@
 
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getAnnualIndicators, AnnualIndicator } from '@/lib/db';
+import { getAnnualIndicators, AnnualIndicator } from '@/lib/db'; // Ensure this path is correct
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-pro-latest' // Consider gemini-1.5-flash for speed if 1.5-pro is too slow, but pro is better for quality.
+    model: 'gemini-1.5-pro-latest' // Or 'gemini-1.5-flash-latest' for speed if needed
 });
 
 export async function GET(req: Request) {
+    // Define reportYear outside the try block to make it accessible in catch for logging
+    let reportYear: number | string = 'unknown';
+
     try {
-        const url  = new URL(req.url);
-        const year = Number(url.searchParams.get('year') ?? new Date().getFullYear());
+        const currentUrl = new URL(req.url); // Use a different variable name to avoid conflict if 'URL' is a type
+        reportYear = currentUrl.searchParams.get('year') ?? new Date().getFullYear();
+        const year = Number(reportYear);
+
 
         // 1) Fetch data
         const indicators: AnnualIndicator[] = await getAnnualIndicators(year);
+
+        if (indicators.length === 0) {
+            console.warn(`No annual indicators found for year: ${year}`);
+        }
 
         // 2) Serialize into a prompt-friendly list
         const structuredData = indicators
             .map((i: AnnualIndicator) =>
                 `- ${i.DisplayName} (${i.IndicatorCategory}` +
                 (i.IndicatorSubCategory ? ` › ${i.IndicatorSubCategory}` : '') +
-                `): ${i.value?.toLocaleString(undefined, { maximumFractionDigits: 3 }) ?? 'N/A'} ${i.StandardUnit}` // Added toLocaleString options
+                `): ${i.value?.toLocaleString(undefined, { maximumFractionDigits: 3 }) ?? 'N/A'} ${i.StandardUnit}`
             )
             .join('\n');
 
@@ -95,8 +104,8 @@ ${structuredData}
         const result = await model.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
-                temperature:     0.6, // Slightly lower for more factual, less "creative" economic reporting
-                maxOutputTokens: 1500, // Increased to allow for more detailed analysis and narrative
+                temperature:     0.6,
+                maxOutputTokens: 2000,
                 topP: 0.95,
                 topK: 40
             }
@@ -111,13 +120,25 @@ ${structuredData}
         // 5) Return
         return NextResponse.json({
             indicators,
-            aiSummary: aiSummary || 'No summary generated.',
+            aiSummary: aiSummary || 'No summary generated. The AI may not have had enough data or context for the selected year.',
             generatedAt: new Date().toISOString()
         });
-    } catch (err: any) {
-        console.error('Annual report error:', err);
+    } catch (err: unknown) { // FIX 1: Type 'err' as 'unknown'
+        // FIX 2: 'reportYear' is accessible here for logging
+        console.error(`Error in /api/indicators-annual-report for year ${reportYear}:`, err);
+        let errorMessage: string = 'Failed to build annual report.'; // Explicitly type errorMessage
+
+        if (err instanceof Error) {
+            errorMessage = err.message;
+        } else if (typeof err === 'string') {
+            errorMessage = err;
+            // Optional: Handle other error types if necessary
+            // else if (err && typeof err === 'object' && 'message' in err) {
+            //    errorMessage = String((err as { message: unknown }).message);
+            // }
+        }
         return NextResponse.json(
-            { message: 'Failed to build annual report', error: err.message },
+            { message: 'An error occurred while generating the annual report.', error: errorMessage },
             { status: 500 }
         );
     }
