@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,31 +7,30 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Icons as before...
+// Icon Components
 const FilterIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.032c0 .114-.024.224-.07.324a.75.75 0 01-1.32-.324V12.5c0-.584-.237-1.135-.659-1.59L4.682 6.22A2.25 2.25 0 014 4.632V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+    <svg className="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293.707L3.293 7.707A1 1 0 013 7V4z" />
     </svg>
 );
 
-const ChartBarIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-        <path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 10h2v7H7v-7zm4 0h2v7h-2v-7zm4-3h2v10h-2V7z" />
+const ChartBarIcon = ({ className }: { className?: string }) => (
+    <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
 );
 
-const LightBulbIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-        <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.993 4.993 0 017 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.08-2.02 3.98L14.85 13.1z" />
+const LightBulbIcon = ({ className }: { className?: string }) => (
+    <svg className={className || "w-5 h-5"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
     </svg>
 );
 
 const SparklesIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39-1.154 2.116.61.391c.523.317.974.787 1.296 1.338l-.59 4.292a.75.75 0 001.054.807l4.108-2.559 4.108 2.559a.75.75 0 001.054-.807l-.59-4.292c.322-.551.773-1.021 1.296-1.338l.61-.391-1.154-2.116-4.753-.39L10.868 2.884zM6.464 10c-.377-.213-.837-.338-1.33-.365a.75.75 0 00-.676.93L4.71 14.31a.75.75 0 00.676.599l3.065-.04a.75.75 0 00.553-.44l1.445-2.887a.75.75 0 00-1.299-.769l-.019.033-.491.987c-.377.753-1.211.988-1.96.614A4.54 4.54 0 016.464 10zM14.836 11.064c.377-.753 1.211-.988 1.96-.614a4.542 4.542 0 011.054.675l2.746-3.76a.75.75 0 00-.676-.93l-3.065.04a.75.75 0 00-.553.44L14.04 9.25a.75.75 0 001.3.768l.019-.033.491-.987z" clipRule="evenodd" />
+    <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l3.057 3.943L5 12l3.057 5.057L5 21l5.057-3.943L15 21l-3.943-5.057L15 12l-5.943-3.057L15 3l-5.057 3.943L5 3z" />
     </svg>
 );
-
 
 interface Indicator {
     IndicatorKey: number;
@@ -39,7 +39,7 @@ interface Indicator {
     IndicatorCategory: string;
     IndicatorSubCategory?: string;
     StandardUnit: string;
-    value?: number; // for the annual report
+    value?: number;
 }
 
 interface ChartDataPoint {
@@ -47,30 +47,37 @@ interface ChartDataPoint {
     value: number;
 }
 
+// Interface for jsPDF instance when extended by jspdf-autotable
+interface jsPDFWithAutoTable extends jsPDF {
+    lastAutoTable: {
+        finalY: number;
+        // Include other properties from lastAutoTable if needed
+    };
+    // Add other autoTable specific methods or properties if used directly on doc
+}
+
+
 export default function DashboardPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [indicators, setIndicators] = useState<Indicator[]>([]);
-    const [selectedIndicatorKey, setSelectedIndicatorKey] = useState<string>('');
-    const [isLoadingIndicators, setIsLoadingIndicators] = useState<boolean>(true);
+    const [selectedIndicatorKey, setSelectedIndicatorKey] = useState('');
+    const [isLoadingIndicators, setIsLoadingIndicators] = useState(true);
     const [errorIndicators, setErrorIndicators] = useState<string | null>(null);
-
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-    const [isLoadingChartData, setIsLoadingChartData] = useState<boolean>(false);
+    const [isLoadingChartData, setIsLoadingChartData] = useState(false);
     const [errorChartData, setErrorChartData] = useState<string | null>(null);
     const [currentChartIndicator, setCurrentChartIndicator] = useState<Indicator | null>(null);
-
-    const [startDate, setStartDate] = useState<string>('');
-    const [endDate, setEndDate] = useState<string>('');
-
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [aiDescription, setAiDescription] = useState<string | null>(null);
-    const [isLoadingAiDescription, setIsLoadingAiDescription] = useState<boolean>(false);
+    const [isLoadingAiDescription, setIsLoadingAiDescription] = useState(false);
     const [errorAiDescription, setErrorAiDescription] = useState<string | null>(null);
 
     useEffect(() => {
         setIsMounted(true);
         const today = new Date();
         const defaultEndDate = format(today, 'yyyy-MM-dd');
-        const defaultStartDate = format(new Date(today.setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd');
+        const defaultStartDate = format(new Date(new Date().setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd');
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
 
@@ -94,6 +101,7 @@ export default function DashboardPage() {
         fetchIndicators();
     }, []);
 
+    // ----------- Handlers -----------
     const handleIndicatorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedIndicatorKey(event.target.value);
         setChartData([]);
@@ -105,7 +113,6 @@ export default function DashboardPage() {
     const handleFetchChartData = async () => {
         setAiDescription(null);
         setErrorAiDescription(null);
-
         if (!selectedIndicatorKey) {
             setErrorChartData("Please select an indicator.");
             return;
@@ -118,13 +125,11 @@ export default function DashboardPage() {
             setErrorChartData("Start date cannot be after end date.");
             return;
         }
-
         setIsLoadingChartData(true);
         setErrorChartData(null);
         setChartData([]);
         const selectedInd = indicators.find(ind => ind.IndicatorKey.toString() === selectedIndicatorKey);
         setCurrentChartIndicator(selectedInd || null);
-
         try {
             const params = new URLSearchParams({
                 indicatorKey: selectedIndicatorKey,
@@ -182,75 +187,165 @@ export default function DashboardPage() {
 
     // ----------- PDF Handler -----------
     const handleDownloadPdf = async () => {
-        // Detect year from startDate, fallback to this year
         let year: number;
         if (startDate) {
             year = new Date(startDate).getFullYear();
         } else {
             year = new Date().getFullYear();
         }
-
         const response = await fetch(`/api/indicators-annual-report?year=${year}`);
         if (!response.ok) {
             alert("Failed to fetch annual report data!");
             return;
         }
-        const { indicators, aiSummary, generatedAt } = await response.json();
-
-        const doc = new jsPDF();
+        const { indicators: reportIndicators, aiSummary, generatedAt } = await response.json();
+        const doc: jsPDFWithAutoTable = new jsPDF() as jsPDFWithAutoTable; // Cast to include autoTable properties
 
         // --- COVER PAGE ---
-        doc.setFontSize(20);
-        doc.text("Moroccan Economy Dashboard", 105, 20, { align: "center" });
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.text('Moroccan Economic Indicators Report', 105, 30, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(14);
-        doc.text(`Annual Economic Indicators Report`, 105, 32, { align: "center" });
-        doc.setFontSize(12);
-        doc.text(`Year: ${year}`, 105, 40, { align: "center" });
-        doc.text(`Generated: ${new Date(generatedAt).toLocaleString()}`, 105, 46, { align: "center" });
-
-        doc.addPage();
-
-        // --- AI EXECUTIVE SUMMARY ---
-        doc.setFontSize(16);
-        doc.text("Executive Summary (AI):", 14, 18);
+        doc.text(`Year: ${year}`, 105, 42, { align: 'center' });
         doc.setFontSize(11);
-        doc.text(doc.splitTextToSize(aiSummary, 180), 14, 28);
+        doc.text(`Generated on: ${new Date(generatedAt).toLocaleString()}`, 105, 50, { align: 'center' });
+        doc.setFontSize(12);
+        doc.setTextColor(60, 60, 60);
+        doc.text(
+            "A comprehensive annual overview of Morocco's key economic indicators and AI-generated insights.",
+            105,
+            62,
+            { align: 'center', maxWidth: 180 }
+        );
+        doc.setDrawColor(51, 105, 232);
+        doc.setLineWidth(1);
+        doc.line(40, 70, 170, 70);
+
+        // --- EXECUTIVE SUMMARY (paginated) ---
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.setTextColor(41, 128, 185);
+        doc.text('Annual Economic Review (AI)', 14, 24);
+
+        const pageWidth   = doc.internal.pageSize.getWidth();
+        const pageHeight  = doc.internal.pageSize.getHeight();
+        const margin      = 14;
+        const maxLineWidth= pageWidth - margin * 2;
+        const lineHeight  = 7;
+        let cursorY       = 32;
+
+        const lines = doc.splitTextToSize(aiSummary || "AI summary not available.", maxLineWidth);
+
+        for (const line of lines) {
+            if (cursorY + lineHeight > pageHeight - margin) {
+                doc.addPage();
+                cursorY = margin;
+            }
+            doc.setFontSize(11);
+            doc.setTextColor(30, 30, 30);
+            doc.text(line, margin, cursorY);
+            cursorY += lineHeight;
+        }
+
+        let keyInsightsStartY = cursorY + 5;
+
+        const keyInsightsMatch = aiSummary?.match(/Key Insights:([\s\S]*)/i);
+        if (keyInsightsMatch) {
+            const insights = keyInsightsMatch[1];
+            const bullets = insights.match(/[-*]\s+.+/g);
+            if (bullets && bullets.length > 0) {
+                if (keyInsightsStartY + 20 > pageHeight - margin) {
+                    doc.addPage();
+                    keyInsightsStartY = margin;
+                }
+                doc.setFontSize(13);
+                doc.setTextColor(41, 128, 185);
+                doc.text('Key Insights', 14, keyInsightsStartY);
+                keyInsightsStartY += 7;
+                doc.setFontSize(11);
+                doc.setTextColor(30, 30, 30);
+                for (const b of bullets) {
+                    const bulletText = `• ${b.replace(/^[-*]\s+/, '')}`;
+                    const splitBullet = doc.splitTextToSize(bulletText, maxLineWidth - 4);
+                    for (const bulletLine of splitBullet) {
+                        if (keyInsightsStartY + lineHeight > pageHeight - margin) {
+                            doc.addPage();
+                            keyInsightsStartY = margin;
+                        }
+                        doc.text(bulletLine, 18, keyInsightsStartY);
+                        keyInsightsStartY += lineHeight;
+                    }
+                    if (keyInsightsStartY > pageHeight - margin - lineHeight) {
+                        doc.addPage();
+                        keyInsightsStartY = margin;
+                    }
+                }
+            }
+        }
 
         doc.addPage();
+        let indicatorTableStartY = 22;
+        doc.setFontSize(15);
+        doc.setTextColor(41, 128, 185);
+        doc.text('All Indicators', 14, indicatorTableStartY);
+        indicatorTableStartY += 8;
 
-        // --- INDICATOR TABLE ---
-        doc.setFontSize(14);
-        doc.text("Economic Indicators", 14, 18);
+        const grouped: Record<string, Indicator[]> = {};
+        for (const ind of reportIndicators) {
+            if (!grouped[ind.IndicatorCategory]) grouped[ind.IndicatorCategory] = [];
+            grouped[ind.IndicatorCategory].push(ind);
+        }
 
-        autoTable(doc, {
-            startY: 24,
-            head: [["Name", "Category", "Subcategory", "Value", "Unit"]],
-            body: indicators.map((ind: Indicator) => [
-                ind.DisplayName,
-                ind.IndicatorCategory,
-                ind.IndicatorSubCategory || "-",
-                ind.value ?? "-",
-                ind.StandardUnit,
-            ]),
-            theme: "grid",
-            headStyles: { fillColor: [41, 128, 185] },
-            styles: { fontSize: 10, cellPadding: 2 },
-            margin: { left: 14, right: 14 },
-        });
+        for (const cat of Object.keys(grouped)) {
+            if (indicatorTableStartY + 15 > pageHeight - margin) {
+                doc.addPage();
+                indicatorTableStartY = margin;
+            }
+            doc.setFontSize(13);
+            doc.setTextColor(51, 105, 232);
+            doc.text(cat, 16, indicatorTableStartY);
+            autoTable(doc, {
+                startY: indicatorTableStartY + 4,
+                head: [['Name', 'Subcategory', 'Value', 'Unit']],
+                body: grouped[cat].map(ind => [
+                    ind.DisplayName,
+                    ind.IndicatorSubCategory || '-',
+                    ind.value ?? '-',
+                    ind.StandardUnit,
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255], fontStyle: 'bold' },
+                bodyStyles: { fontSize: 10 },
+                alternateRowStyles: { fillColor: [230, 240, 255] },
+                margin: { left: 16, right: 10 },
+                tableWidth: 180,
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                didDrawPage: (_data) => { // FIX 1: ESLint disable for unused _data
+                    indicatorTableStartY = margin;
+                }
+            });
+            indicatorTableStartY = doc.lastAutoTable.finalY + 12; // Use doc directly as it's now typed jsPDFWithAutoTable
+        }
 
-        // --- FOOTER (optional) ---
-        doc.setFontSize(10);
-        doc.text(
-            "Source: Moroccan Economy Dashboard | Powered by AI | Generated on " +
-            new Date(generatedAt).toLocaleDateString(),
-            105,
-            doc.internal.pageSize.height - 10,
-            { align: "center" }
-        );
+        // --- FOOTER on each page ---
+        const pageCount = doc.internal.pages.length; // FIX 2: Use pages.length for page count
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                'Source: Moroccan Economy Dashboard | Data: HCP, Bank Al-Maghrib, World Bank | Powered by AI | For informational purposes only.',
+                pageWidth / 2,
+                pageHeight - 8,
+                { align: 'center' }
+            );
+            doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 10, pageHeight - 8, { align: 'right'});
+        }
 
         doc.save(`Moroccan_Economy_Report_${year}.pdf`);
     };
-    // ----------- End PDF Handler -----------
+
 
     if (!isMounted) {
         return (
@@ -263,7 +358,7 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8 p-4 md:p-6 lg:p-8">
-            {/* -------- PDF BUTTON -------- */}
+            {/* PDF Button */}
             <div className="flex justify-end mb-2">
                 <button
                     onClick={handleDownloadPdf}
@@ -272,7 +367,6 @@ export default function DashboardPage() {
                     Download Annual PDF Report
                 </button>
             </div>
-
             {/* Filters Section */}
             <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70">
                 <div className="flex items-center mb-5">
@@ -306,7 +400,6 @@ export default function DashboardPage() {
                             </select>
                         )}
                     </div>
-
                     <div>
                         <label htmlFor="start-date" className="block text-sm font-medium text-slate-300 mb-1.5">
                             Start Date
@@ -319,7 +412,6 @@ export default function DashboardPage() {
                             className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm"
                         />
                     </div>
-
                     <div>
                         <label htmlFor="end-date" className="block text-sm font-medium text-slate-300 mb-1.5">
                             End Date
@@ -332,7 +424,6 @@ export default function DashboardPage() {
                             className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-100 shadow-sm"
                         />
                     </div>
-
                     <div className="sm:col-span-full lg:col-span-1 xl:col-span-4 flex justify-end pt-3">
                         <button
                             onClick={handleFetchChartData}
@@ -357,7 +448,6 @@ export default function DashboardPage() {
                         {currentChartIndicator.IndicatorSubCategory && ` > ${currentChartIndicator.IndicatorSubCategory}`}
                     </p>
                 )}
-
                 <div className="h-[380px] bg-slate-700/30 p-3 sm:p-4 rounded-lg border border-slate-600/50 flex items-center justify-center">
                     {isLoadingChartData && (
                         <div className="flex flex-col items-center text-slate-400">
@@ -384,7 +474,6 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </div>
-
                 {/* AI Chart Description UI */}
                 {isMounted && chartData.length > 0 && currentChartIndicator && !isLoadingChartData && !errorChartData && (
                     <div className="mt-8 pt-6 border-t border-slate-700">

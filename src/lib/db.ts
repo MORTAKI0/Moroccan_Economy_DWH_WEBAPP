@@ -1,118 +1,100 @@
 // src/lib/db.ts
-import mysql from 'mysql2/promise'; // Using the promise-based API
+import mysql from 'mysql2/promise';
+import type { Pool, PoolOptions, PoolConnection } from 'mysql2/promise';
+import type { RowDataPacket } from 'mysql2';
 
-// Define the connection pool (recommended for multiple requests)
-// The pool will manage connections for you.
-let pool: mysql.Pool | null = null;
+let pool: Pool | null = null;
 
-function getPool() {
-    if (pool) {
-        return pool;
-    }
+/** Create (or return) a MySQL connection pool to your local WAMP server */
+function getPool(): Pool {
+    if (pool) return pool;
 
-    // Read environment variables for database connection
-    // DB_HOST will be crucial:
-    // - In Cloud Run (with Cloud SQL connection): /cloudsql/YOUR_INSTANCE_CONNECTION_NAME
-    // - Local Docker with WAMP: host.docker.internal
-    // - Local dev (npm run dev) without Docker: localhost (or specific IP if WAMP isn't on localhost for Node)
-    // - Other TCP/IP connections: The actual IP or hostname
-    const dbHost = process.env.DB_HOST;
-    const dbUser = process.env.DB_USER || 'root';
-    const dbPassword = process.env.DB_PASSWORD || ''; // In Cloud Run, this will come from Secret Manager
-    const dbName = process.env.DB_NAME || 'moroccan_economy_dwh_local';
-    const dbPort = parseInt(process.env.DB_PORT || '3306', 10);
+    const host     = process.env.DB_HOST     ?? '127.0.0.1';
+    const port     = parseInt(process.env.DB_PORT ?? '3306', 10);
+    const user     = process.env.DB_USER     ?? 'root';
+    const password = process.env.DB_PASSWORD ?? '';
+    const database = process.env.DB_NAME     ?? 'moroccan_economy_dwh_local';
 
-    const connectionConfig: mysql.PoolOptions = {
-        user: dbUser,
-        password: dbPassword,
-        database: dbName,
+    const config: PoolOptions = {
+        host,
+        port,
+        user,
+        password,
+        database,
         waitForConnections: true,
-        connectionLimit: 10, // Adjust as needed for Cloud SQL tier and app load
-        queueLimit: 0,
-        connectTimeout: 15000 // Optional: Increased connection timeout
+        connectionLimit:    10,
+        queueLimit:         0,
+        connectTimeout:     15000,
     };
 
-    // --- Logic to handle different DB_HOST scenarios ---
-    if (dbHost && dbHost.startsWith('/cloudsql/')) {
-        // Scenario 1: Cloud Run connecting to Cloud SQL via Unix Socket
-        // Cloud Run injects the socket path, often into DB_HOST or CLOUD_SQL_CONNECTION_NAME.
-        // We assume DB_HOST will carry this socket path.
-        console.log(`Configuring MySQL connection for Cloud SQL socket: ${dbHost}`);
-        connectionConfig.socketPath = dbHost;
-    } else if (dbHost === 'host.docker.internal') {
-        // Scenario 2: Local Docker container connecting to WampServer (or other host service)
-        console.log(`Configuring MySQL connection for host.docker.internal (WAMP) via TCP: ${dbHost}:${dbPort}`);
-        connectionConfig.host = dbHost;
-        connectionConfig.port = dbPort;
-    } else if (dbHost) {
-        // Scenario 3: Connecting via TCP/IP to a specific host (e.g., Cloud SQL Public IP, other remote DB)
-        console.log(`Configuring MySQL connection for remote host via TCP: ${dbHost}:${dbPort}`);
-        connectionConfig.host = dbHost;
-        connectionConfig.port = dbPort;
-    } else {
-        // Scenario 4: Fallback for local development (npm run dev without Docker, or if DB_HOST is not set)
-        // Defaults to 'localhost'
-        console.log(`Configuring MySQL connection for localhost (default/WAMP) via TCP: localhost:${dbPort}`);
-        connectionConfig.host = 'localhost'; // Assumes WAMP MySQL is accessible via 'localhost' from Node.js
-        connectionConfig.port = dbPort;
-    }
-    // --- End of DB_HOST scenario logic ---
-
-    // Create the connection pool with the determined configuration
-    pool = mysql.createPool(connectionConfig);
-
-    console.log("MySQL Connection Pool created with configuration:", {
-        host: connectionConfig.host,
-        port: connectionConfig.port,
-        socketPath: connectionConfig.socketPath,
-        user: connectionConfig.user,
-        database: connectionConfig.database,
-        // Do not log password
-    });
-
+    pool = mysql.createPool(config);
+    console.log('💾 MySQL pool created:', { host, port, database, user });
     return pool;
 }
 
+/**
+ * Run any SQL and return the raw RowDataPacket[].
+ * - `params` is `unknown[]` (no `any`).
+ */
+export async function queryDatabase(
+    sql: string,
+    params?: unknown[]
+): Promise<RowDataPacket[]> {
+    const p = getPool();
+    let conn: PoolConnection | undefined;
 
-// Function to execute queries
-export async function queryDatabase(sql: string, params?: any[]) {
-    const currentPool = getPool(); // Ensures pool is initialized
-    let connection;
     try {
-        connection = await currentPool.getConnection();
-        // console.log(`Executing query: ${sql.substring(0,100)}... with params:`, params); // Log query safely
-        const [results] = await connection.execute(sql, params);
-        return results;
-    } catch (error) {
-        const dbError = error as any; // Cast to access potential MySQL error properties
-        console.error("Database query error:", dbError.message); // Log the error message
-        // Log more specific MySQL error details if available
-        if (dbError.code || dbError.sqlState) {
-            console.error(`MySQL Error - Code: ${dbError.code}, SQLState: ${dbError.sqlState}`);
-        }
-        // In a real app, you might throw a custom error or handle specific DB errors
-        throw new Error(`Failed to query the database. Error: ${dbError.message}`);
+        conn = await p.getConnection();
+        const [rows] = await conn.execute<RowDataPacket[]>(sql, params);
+        return rows;
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error('🔴 DB error:', msg);
+        throw new Error(`Database query failed: ${msg}`);
     } finally {
-        if (connection) {
-            connection.release(); // Release the connection back to the pool
-        }
+        conn?.release();
     }
 }
 
-// Optional: A function to test the connection if needed during startup
-export async function testDbConnection() {
-    try {
-        // Calling getPool() here ensures it's initialized based on current env vars
-        const connection = await getPool().getConnection();
-        console.log("Successfully connected to MySQL via pool for test.");
-        connection.release();
-        return true;
-    } catch (error) {
-        const dbError = error as any;
-        console.error("Failed to connect to MySQL via pool for test:", dbError.message);
-        if (dbError.code || dbError.sqlState) {
-            console.error(`MySQL Test Connection Error - Code: ${dbError.code}, SQLState: ${dbError.sqlState}`);
-        }
-        return false;
-    }
+
+/** Shape of one annual indicator for your API */
+export interface AnnualIndicator {
+    DisplayName:          string;
+    IndicatorCategory:    string;
+    IndicatorSubCategory: string | null;
+    value:                number;
+    StandardUnit:         string;
+}
+
+/**
+ * Fetches the “annual” values for all indicators in a given year.
+ * Joins facteconomicindicators ⇢ dimtime, dimindicator, dimfrequency.
+ */
+export async function getAnnualIndicators(
+    year: number
+): Promise<AnnualIndicator[]> {
+    const sql = `
+    SELECT
+      di.DisplayName,
+      di.IndicatorCategory,
+      di.IndicatorSubCategory,
+      fi.IndicatorValue    AS value,
+      di.StandardUnit
+    FROM facteconomicindicators AS fi
+    JOIN dimtime     AS dt ON fi.TimeKey      = dt.TimeKey
+    JOIN dimindicator AS di ON fi.IndicatorKey = di.IndicatorKey
+    JOIN dimfrequency AS df ON fi.FrequencyKey = df.FrequencyKey
+    WHERE dt.Year = ? AND df.FrequencyName = 'Annual'
+    ORDER BY di.DisplayName
+  `;
+
+    const rows = await queryDatabase(sql, [year]);
+
+    return rows.map((row) => ({
+        DisplayName:          String(row.DisplayName),
+        IndicatorCategory:    String(row.IndicatorCategory),
+        IndicatorSubCategory: row.IndicatorSubCategory === null ? null : String(row.IndicatorSubCategory),
+        value:                Number(row.value),
+        StandardUnit:         String(row.StandardUnit),
+    }));
 }
