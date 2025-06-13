@@ -1,11 +1,12 @@
-// src/app/dashboard/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import EconomicChart from '@/components/EconomicChart'; // Ensure this path is correct
+import EconomicChart from '@/components/EconomicChart';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-// Simple SVG Icons - You can replace these with a proper icon library or more refined SVGs
+// Icons as before...
 const FilterIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
         <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.032c0 .114-.024.224-.07.324a.75.75 0 01-1.32-.324V12.5c0-.584-.237-1.135-.659-1.59L4.682 6.22A2.25 2.25 0 014 4.632V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
@@ -24,7 +25,6 @@ const LightBulbIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-// SparklesIcon (using a cleaner, more standard version)
 const SparklesIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
         <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39-1.154 2.116.61.391c.523.317.974.787 1.296 1.338l-.59 4.292a.75.75 0 001.054.807l4.108-2.559 4.108 2.559a.75.75 0 001.054-.807l-.59-4.292c.322-.551.773-1.021 1.296-1.338l.61-.391-1.154-2.116-4.753-.39L10.868 2.884zM6.464 10c-.377-.213-.837-.338-1.33-.365a.75.75 0 00-.676.93L4.71 14.31a.75.75 0 00.676.599l3.065-.04a.75.75 0 00.553-.44l1.445-2.887a.75.75 0 00-1.299-.769l-.019.033-.491.987c-.377.753-1.211.988-1.96.614A4.54 4.54 0 016.464 10zM14.836 11.064c.377-.753 1.211-.988 1.96-.614a4.542 4.542 0 011.054.675l2.746-3.76a.75.75 0 00-.676-.93l-3.065.04a.75.75 0 00-.553.44L14.04 9.25a.75.75 0 001.3.768l.019-.033.491-.987z" clipRule="evenodd" />
@@ -39,6 +39,7 @@ interface Indicator {
     IndicatorCategory: string;
     IndicatorSubCategory?: string;
     StandardUnit: string;
+    value?: number; // for the annual report
 }
 
 interface ChartDataPoint {
@@ -69,8 +70,7 @@ export default function DashboardPage() {
         setIsMounted(true);
         const today = new Date();
         const defaultEndDate = format(today, 'yyyy-MM-dd');
-        const defaultStartDate = format(new Date(today.setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd'); // Default to 5 years ago
-
+        const defaultStartDate = format(new Date(today.setFullYear(today.getFullYear() - 5)), 'yyyy-MM-dd');
         setStartDate(defaultStartDate);
         setEndDate(defaultEndDate);
 
@@ -85,10 +85,6 @@ export default function DashboardPage() {
                 }
                 const data: Indicator[] = await response.json();
                 setIndicators(data);
-                // Optionally, select the first indicator by default
-                // if (data.length > 0) {
-                //     setSelectedIndicatorKey(data[0].IndicatorKey.toString());
-                // }
             } catch (err) {
                 setErrorIndicators((err as Error).message);
             } finally {
@@ -184,6 +180,78 @@ export default function DashboardPage() {
         }
     };
 
+    // ----------- PDF Handler -----------
+    const handleDownloadPdf = async () => {
+        // Detect year from startDate, fallback to this year
+        let year: number;
+        if (startDate) {
+            year = new Date(startDate).getFullYear();
+        } else {
+            year = new Date().getFullYear();
+        }
+
+        const response = await fetch(`/api/indicators-annual-report?year=${year}`);
+        if (!response.ok) {
+            alert("Failed to fetch annual report data!");
+            return;
+        }
+        const { indicators, aiSummary, generatedAt } = await response.json();
+
+        const doc = new jsPDF();
+
+        // --- COVER PAGE ---
+        doc.setFontSize(20);
+        doc.text("Moroccan Economy Dashboard", 105, 20, { align: "center" });
+        doc.setFontSize(14);
+        doc.text(`Annual Economic Indicators Report`, 105, 32, { align: "center" });
+        doc.setFontSize(12);
+        doc.text(`Year: ${year}`, 105, 40, { align: "center" });
+        doc.text(`Generated: ${new Date(generatedAt).toLocaleString()}`, 105, 46, { align: "center" });
+
+        doc.addPage();
+
+        // --- AI EXECUTIVE SUMMARY ---
+        doc.setFontSize(16);
+        doc.text("Executive Summary (AI):", 14, 18);
+        doc.setFontSize(11);
+        doc.text(doc.splitTextToSize(aiSummary, 180), 14, 28);
+
+        doc.addPage();
+
+        // --- INDICATOR TABLE ---
+        doc.setFontSize(14);
+        doc.text("Economic Indicators", 14, 18);
+
+        autoTable(doc, {
+            startY: 24,
+            head: [["Name", "Category", "Subcategory", "Value", "Unit"]],
+            body: indicators.map((ind: Indicator) => [
+                ind.DisplayName,
+                ind.IndicatorCategory,
+                ind.IndicatorSubCategory || "-",
+                ind.value ?? "-",
+                ind.StandardUnit,
+            ]),
+            theme: "grid",
+            headStyles: { fillColor: [41, 128, 185] },
+            styles: { fontSize: 10, cellPadding: 2 },
+            margin: { left: 14, right: 14 },
+        });
+
+        // --- FOOTER (optional) ---
+        doc.setFontSize(10);
+        doc.text(
+            "Source: Moroccan Economy Dashboard | Powered by AI | Generated on " +
+            new Date(generatedAt).toLocaleDateString(),
+            105,
+            doc.internal.pageSize.height - 10,
+            { align: "center" }
+        );
+
+        doc.save(`Moroccan_Economy_Report_${year}.pdf`);
+    };
+    // ----------- End PDF Handler -----------
+
     if (!isMounted) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] p-4 md:p-8">
@@ -195,6 +263,16 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8 p-4 md:p-6 lg:p-8">
+            {/* -------- PDF BUTTON -------- */}
+            <div className="flex justify-end mb-2">
+                <button
+                    onClick={handleDownloadPdf}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg mb-4 transition-all shadow"
+                >
+                    Download Annual PDF Report
+                </button>
+            </div>
+
             {/* Filters Section */}
             <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70">
                 <div className="flex items-center mb-5">
@@ -269,7 +347,7 @@ export default function DashboardPage() {
             </section>
 
             {/* Visualization & AI Insights Section */}
-            <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70 min-h-[500px]"> {/* Ensure a min height */}
+            <section className="bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl border border-slate-700/70 min-h-[500px]">
                 <h2 className="text-xl sm:text-2xl font-semibold mb-1 text-sky-300">
                     {currentChartIndicator ? `Chart: ${currentChartIndicator.DisplayName}` : "Data Visualization"}
                 </h2>
@@ -342,8 +420,6 @@ export default function DashboardPage() {
                     </div>
                 )}
             </section>
-
-            {/* Developer Tools Section has been removed */}
         </div>
     );
 }
